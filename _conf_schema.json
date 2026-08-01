@@ -1,0 +1,77 @@
+{
+    "filter_config" : {
+        "description" : "审核模型（第一个llm）相关的配置",
+        "type" : "object",
+        "items" : {
+            "filter_open" : {
+                "description" : "是否开启审核模型",
+                "hint" : "开启审核模型后，用户输入的消息会先通过审核模型进行审核，审核通过后才会发送给目标模型",
+                "type" : "bool",
+                "default" : true
+            },
+            "filter_prompt" : {
+                "description" : "审核提示词",
+                "hint" : "审核的pormpt，需要在人格中添加，可参见readme并根据自身需要酌情修改",
+                "type" : "string",
+                "_special" : "select_persona"
+            },
+            "filter_provider" : {
+                "description" : "审核模型提供商",
+                "hint" : "建议使用有thinking功能的模型以获得最好效果",
+                "type" : "string",
+                "_special" : "select_provider"
+            },
+            "filter_allow" : {
+                "description" : "审核通过关键词",
+                "hint" : "通过审核后模型的预期输出，如果没有改动审核提示词不要改动此项",
+                "type" : "string",
+                "default" : "allow"
+            },
+            "filter_block" : {
+                "description" : "审核未通过关键词",
+                "hint" : "未通过审核后模型的预期输出，如果没有改动审核提示词不要改动此项",
+                "type" : "string",
+                "default" : "block"
+            },
+            "filter_roles" : {
+                "description" : "多轮审核的对话轮数",
+                "hint" : "本插件不保留模型输出的内容，仅将最近若干轮用户输入传递给审核模型，有助于审核模型了解上下文提升审核准确性，但是数值过大可能导致额外tokens消耗，不希望开启这个功能可设置为0",
+                "type" : "int"
+            },
+            "filter_mode" : {
+                "description" : "是否开启严格模式",
+                "hint" : "严格模式：输出不含通过关键词就拒绝回复；非严格模式：输出含未通过关键词才拒绝回复",
+                "type" : "bool"
+            }
+        }
+    },
+    "live_context_config" : {
+        "description" : "直播间上下文相关配置",
+        "type" : "object",
+        "items" : {
+            "context_events_count" : {
+                "description" : "最大直播间消息数量",
+                "hint" : "发送给LLM的直播间消息最大数量，实际发送数量会根据去重结果调整",
+                "type" : "int",
+                "default" : 10
+            }
+        }
+    },
+    "vts_config" : {
+        "description" : "VTS情感模型相关配置",
+        "type" : "object",
+        "items" : {
+            "is_open" : {
+                "description" : "是否开启此功能",
+                "type" : "bool",
+                "hint" : "需要在VTS中确认插件"
+            },
+            "provider" : {
+                "description" : "VTS情感模型提供商",
+                "hint" : "建议使用有thinking功能的模型以获得最好效果",
+                "type" : "string",
+                "_special" : "select_provider"
+            }
+        }
+    }
+}
