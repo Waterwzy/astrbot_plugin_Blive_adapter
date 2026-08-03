@@ -1,6 +1,6 @@
 name: astrbot_plugin_Blive_adapter 
 display_name: bilibili直播平台适配器 
 desc: 用于接入bilibili的平台适配器
-version: beta
+version: 0.1.0
 author: Waterwzy 
-repo: https://github.com/Soulter/helloworld 
+repo: https://github.com/Waterwzy/astrbot_plugin_Blive_adapter

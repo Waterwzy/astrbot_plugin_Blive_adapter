@@ -2,6 +2,10 @@
 
 Bilibili 直播平台消息适配器
 
+> [!WARNING]
+>
+> 该插件仅适用于 Windows 平台，不适用于 MacOS/Linux 用户。
+
 ## 0 Start
 
 ### 0.1 BiliBili直播开放平台权限获取
@@ -42,7 +46,7 @@ Bilibili 直播平台消息适配器
 
 - `host` 默认为 `https://live-open.biliapi.com`，应该也不会有其他的
 
-点击保存后，如果看到DEBUG日志中有 `[Bilibili] WebSocket connected and authenticated`，说明填写的信息没有问题且连接成功。
+点击保存后，如果看到INFO日志中有 `[Bilibili] WebSocket connected and authenticated`，说明填写的信息没有问题且连接成功。
 
 ### 1.2 插件配置
 
@@ -99,6 +103,22 @@ Bilibili 直播平台消息适配器
 
 1. 最大直播间消息数量：直播间的相关消息（进入，点赞，大航海，礼物等）会随上下文发送给 llm，这里可以设置单次最大的发送数量。
 
+2. 是否跳过（不处理）表情包弹幕：开启后，表情包弹幕不会被发送给 llm（注意：emoji不视为表情包，如果希望不处理emoji弹幕可看下一个配置项）
+
+3. 跳过（不处理）其他消息的设置：支持自定义跳过消息设置，目前支持四种匹配模式，具体如下：
+
+    - `full`（完整模式）：当且仅当弹幕内容和配置内容**完全一致**时跳过处理。
+
+    - `prefix`（前缀模式）：当且仅当**弹幕内容的前缀**是配置内容是跳过处理。
+
+    - `suffix`（后缀模式）：当且仅当**弹幕内容的后缀**是配置内容时跳过处理。
+
+    - `regex`（正则模式）：当且仅当弹幕内容**完全匹配配置内容的正则表达式**时跳过处理。
+
+> [!WARNING]
+>
+> 在使用 regex 模式时，请确保正则表达式符合 Python 规范，编译错误的表达式会在插件载入阶段报出 WARNING 提示，在实际处理阶段编译错误的表达式会被忽略。
+
 #### 1.2.3 vts情感模型相关配置
 
 一般直播中会使用 Live2D 作为虚拟主播皮套，这里对 vts(VTube Studio) 提供额外支持，可以借助 llm 让虚拟主播在对话时选择合适的 Live2D 表情进行展示（详细信息见下一节）
@@ -128,6 +148,34 @@ Bilibili 直播平台消息适配器
 ![开启插件](images/vts_open_plugin.png)
 
 同时，本插件第一次尝试发送表情时，Vtube Studio 会弹出请求接入的提示，请点击同意，本提示只需要确认一次。
+
+#### 1.3.3 关于 AstrBot 配置
+
+对于 BiliBili 直播平台，有部分配置与普通平台有不同，具体如下：
+
+##### 1.3.3.1 关于用户 ID
+
+由于 BiliBili 直播开放平台的限制，开发者只能获取到用户的 `open_id` 而不是更加常用的 `uid`。
+
+因此，在配置管理员时，需要使用用户的 `open_id` 配置。
+
+查看用户 `open_id` 的方式如下：
+
+在开启本适配器并且基本配置正确的情况下，在直播间发送任意弹幕，会出现类似以下的 INFO 日志：
+
+```text
+[2026-08-03 20:03:19.874] [Core]
+[INFO]
+[astrbot_plugin_Blive_adapter.Blive_adapter:162]: [Bilibili] received: {'data': {'emoji_img_url': '', 'fans_medal_level': 0, 'fans_medal_name': '', 'fans_medal_wearing_status': False, 'guard_level': 0, 'msg': '#example', 'timestamp': 1785758600, 'uid': 0, 'uname': '流萤之梦-official', 'uface': 'https://i0.hdslb.com/bfs/face/4db06c5b4a6bb3995c5c671db079218a8ca2ee84.jpg', 'dm_type': 0, 'union_id': '', 'open_id': 'example_openid', 'is_admin': 0, 'glory_level': 2, 'reply_union_id': '', 'reply_open_id': '', 'reply_uname': '', 'msg_id': '8d65eb23-8297-4403-9f61-a508c01e9f8d', 'room_id': 1851654725}, 'cmd': 'LIVE_OPEN_PLATFORM_DM'}
+```
+
+这里的 `open_id` 字段即为用户的 `open_id`（本例中为`example_openid`）
+
+##### 1.3.3.2 关于 TTS 配置
+
+AstrBot 默认的 TTS 模式为发送语音后便不发送文字消息，这个逻辑在直播中是不成立的，我们需要在输出语音的同时输出文字消息。
+
+此功能需要在 配置文件 > 普通配置 > AI配置 > 其他配置 > 更多配置 > 开启TTS时同时输出语音和文字内容 中开启。
 
 ## 4 贡献
 

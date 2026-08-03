@@ -373,7 +373,7 @@ class BLiveClient:
                     with open(GAME_ID_FILE, encoding="utf-8") as f:
                         cache = json.load(f)
                     game_id = str(cache.get("game_id", ""))
-                    # Also restore room_id so send_message keeps working
+                    # Also restore room_id so convert_message keeps working
                     if not self.room_id:
                         self.room_id = str(cache.get("room_id", ""))
                     source = "file"

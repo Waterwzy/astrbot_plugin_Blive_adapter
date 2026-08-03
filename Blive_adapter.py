@@ -42,6 +42,8 @@ os.makedirs(PLUGIN_DATA_DIR, exist_ok=True)
         "secret_key": "your_access_secret",
         "host": "https://live-open.biliapi.com",
     },
+    adapter_display_name="bilibili 直播适配器",
+    logo_path="logo.png",
 )
 class BilibiliLiveAdapter(Platform):
     def __init__(
@@ -52,7 +54,7 @@ class BilibiliLiveAdapter(Platform):
     ) -> None:
         super().__init__(platform_config, event_queue)
         self.settings = platform_settings
-        self.client: BLiveClient = None
+        self.client: BLiveClient | None = None
 
     async def send_by_session(
         self, session: MessageSesion, message_chain: MessageChain
@@ -62,9 +64,10 @@ class BilibiliLiveAdapter(Platform):
             if isinstance(comp, Plain):
                 text += comp.text
 
+        # 哔哩哔哩开放平台官方 API 不提供向直播间发送消息的能力
+        # （WebSocket 长链为单向推送），因此主动推送的消息仅记录到本地日志。
         if text and self.client:
-            success = await self.client.send_message(text)
-            self._log_sent_message(text, success)
+            self._log_sent_message(text, success=False)
 
         await super().send_by_session(session, message_chain)
 
@@ -93,7 +96,11 @@ class BilibiliLiveAdapter(Platform):
 
     @staticmethod
     def _log_sent_message(text: str, success: bool):
-        """Synchronously log sent message to sent_messages.json."""
+        """Synchronously log sent message to sent_messages.json.
+
+        由于官方开放平台不提供消息发送能力，success 恒为 False，
+        表示该消息仅被本地记录，并未真实发送到直播间。
+        """
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         message_record = {
             "timestamp": now,
@@ -122,6 +129,7 @@ class BilibiliLiveAdapter(Platform):
         return PlatformMetadata(
             name="bilibili",
             description="bilibili 直播适配器",
+            adapter_display_name="bilibili 直播适配器",
             id=id_,
         )
 
@@ -160,6 +168,8 @@ class BilibiliLiveAdapter(Platform):
         await self.client.run()
 
     async def convert_message(self, data: dict) -> AstrBotMessage:
+        if not self.client:
+            return AstrBotMessage()
         abm = AstrBotMessage()
         abm.raw_message = data
         abm.self_id = self.client.game_id
@@ -168,7 +178,7 @@ class BilibiliLiveAdapter(Platform):
         # Common commands: LIVE_OPEN_PLATFORM_DM (danmu), LIVE_OPEN_PLATFORM_SEND_GIFT (gift)
         cmd = data.get("cmd", "")
 
-        if cmd == "LIVE_OPEN_PLATFORM_DM" or cmd == "DANMU_MSG":
+        if cmd == "LIVE_OPEN_PLATFORM_DM":
             # Danmu message
             dm_data = data.get("data", data)
             user_id = str(dm_data.get("open_id", ""))
@@ -184,8 +194,9 @@ class BilibiliLiveAdapter(Platform):
             abm.message = [Plain(text=content)]
             abm.session_id = f"{user_id}_{room_id}"
             abm.message_id = msg_id
+            abm.is_emoji = dm_data.get("dm_type")  # type: ignore
 
-        elif cmd == "LIVE_OPEN_PLATFORM_SEND_GIFT" or cmd == "SEND_GIFT":
+        elif cmd == "LIVE_OPEN_PLATFORM_SEND_GIFT":
             # Gift message — treat as an event notification
             gift_data = data.get("data", data)
             user_id = str(gift_data.get("open_id", ""))
@@ -205,7 +216,7 @@ class BilibiliLiveAdapter(Platform):
             abm.session_id = f"{user_id}_{room_id}"
             abm.message_id = ""
 
-        elif cmd == "LIVE_OPEN_PLATFORM_SUPER_CHAT" or cmd == "SUPER_CHAT_MESSAGE":
+        elif cmd == "LIVE_OPEN_PLATFORM_SUPER_CHAT":
             # Super chat message
             sc_data = data.get("data", data)
             user_id = str(sc_data.get("open_id", ""))
@@ -299,7 +310,7 @@ class BilibiliLiveAdapter(Platform):
                 room_id = self.client.room_id or ""
 
             if not content.strip():
-                return None
+                return AstrBotMessage()
 
             abm.type = MessageType.GROUP_MESSAGE
             abm.group_id = room_id
@@ -314,7 +325,7 @@ class BilibiliLiveAdapter(Platform):
     async def handle_msg(self, message: AstrBotMessage):
         cmd = message.raw_message.get("cmd", "")
         # Only danmu messages are sent to LLM; other events are logged only.
-        if cmd not in ("LIVE_OPEN_PLATFORM_DM", "DANMU_MSG"):
+        if cmd != "LIVE_OPEN_PLATFORM_DM" or not self.client:
             return
 
         message_event = BLivePlatformEvent(
@@ -323,7 +334,9 @@ class BilibiliLiveAdapter(Platform):
             platform_meta=self.meta(),
             session_id=message.session_id,
             client=self.client,
+            is_emoji=getattr(message, "is_emoji", False),
         )
         message_event.is_wake = True
         message_event.is_at_or_wake_command = True
+        # logger.debug(f"SUMBIT EVENT!is_emoji={message_event.is_emoji}")
         self.commit_event(message_event)

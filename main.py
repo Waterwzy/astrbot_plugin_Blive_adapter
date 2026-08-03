@@ -1,14 +1,17 @@
+import asyncio
 import copy
 import json
 import os
+import re
 import traceback
 
 from astrbot.api import AstrBotConfig, ToolSet, logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.provider import LLMResponse, ProviderRequest
+from astrbot.api.provider import ProviderRequest
 from astrbot.api.star import Context, Star
 from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
 
+from .blive_platform_event import BLivePlatformEvent
 from .core.context_parser import ContextParser
 from .core.tools.vts_emotion import VTSEmotionTool
 from .core.vts_manager import VTSManager
@@ -19,6 +22,8 @@ LIVE_EVENTS_JSON = os.path.join(PLUGIN_DATA_DIR, "live_events.json")
 LAST_PROCESSED_FILE = os.path.join(PLUGIN_DATA_DIR, "last_processed.json")
 
 _EMOTION_PROMPT = "**任务**：根据以下的文字，选择最适合文字发送者心情的表情"
+
+# todo : 消息跳过配置化
 
 
 def _get_new_events(last_timestamp: float, max_count: int) -> list:
@@ -67,15 +72,46 @@ def _update_last_processed_timestamp(timestamp: float):
         logger.error(f"[Bilibili] failed to write last_processed.json: {e}")
 
 
-class MyPlugin(Star):
+class BiliBiliLiveTool(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         from .Blive_adapter import BilibiliLiveAdapter  # noqa: F401
 
         self.config = config
+        self.skip_config = []
+        self._bla_lock = asyncio.Lock()
 
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
+        for items in self.config["live_context_config"]["skip_config"]:
+            if items["__template_key"] != "skip_template":
+                continue
+            if items["method"] == "regex":
+                try:
+                    self.skip_config.append(
+                        {"method": "regex", "content": re.compile(items["content"])}
+                    )
+                except re.error:
+                    logger.warning(
+                        f"BiliBili直播适配器正则表达式编译失败，堆栈信息：\n{traceback.format_exc()}"
+                    )
+                    continue
+            else:
+                self.skip_config.append(
+                    {"method": items["method"], "content": items["content"]}
+                )
+
+    def _is_skip(self, target: str) -> bool:
+        for items in self.skip_config:
+            if items["method"] == "full" and items["content"] == "target":
+                return True
+            if items["method"] == "prefix" and target.startswith(items["content"]):
+                return True
+            if items["method"] == "suffix" and target.endswith(items["content"]):
+                return True
+            if items["method"] == "regex" and items["content"].fullmatch(target):
+                return True
+        return False
 
     @filter.on_llm_request()
     async def inject_live_context(self, event: AstrMessageEvent, req: ProviderRequest):
@@ -83,33 +119,33 @@ class MyPlugin(Star):
         sender_plat = event.platform_meta.name
         if sender_plat != "bilibili":
             return
+        async with self._bla_lock:
+            max_count = self.config.get("context_events_count", 10)
+            if max_count <= 0:
+                return
 
-        max_count = self.config.get("context_events_count", 10)
-        if max_count <= 0:
-            return
+            # Get timestamp of last processed event
+            last_timestamp = _get_last_processed_timestamp()
 
-        # Get timestamp of last processed event
-        last_timestamp = _get_last_processed_timestamp()
+            # Get new events since last processing
+            new_events = _get_new_events(last_timestamp, max_count)
+            if not new_events:
+                return
 
-        # Get new events since last processing
-        new_events = _get_new_events(last_timestamp, max_count)
-        if not new_events:
-            return
+            # Update last processed timestamp to the newest event
+            newest_timestamp = max(e.get("timestamp", 0) for e in new_events)
+            _update_last_processed_timestamp(newest_timestamp)
 
-        # Update last processed timestamp to the newest event
-        newest_timestamp = max(e.get("timestamp", 0) for e in new_events)
-        _update_last_processed_timestamp(newest_timestamp)
+            # Format events for LLM context
+            events_text = "\n".join(e.get("content", "") for e in new_events)
+            live_context = f"<直播间动态>\n{events_text}\n</直播间动态>"
 
-        # Format events for LLM context
-        events_text = "\n".join(e.get("content", "") for e in new_events)
-        live_context = f"<直播间动态>\n{events_text}\n</直播间动态>"
-
-        # Put danmu at top, events below
-        for i in range(len(req.contexts) - 1, -1, -1):
-            if req.contexts[i].get("role") == "user":
-                original = req.contexts[i].get("content", "")
-                req.contexts[i]["content"] = f"{original}\n\n{live_context}"
-                break
+            # Put danmu at top, events below
+            for i in range(len(req.contexts) - 1, -1, -1):
+                if req.contexts[i].get("role") == "user":
+                    original = req.contexts[i].get("content", "")
+                    req.contexts[i]["content"] = f"{original}\n\n{live_context}"
+                    break
 
     @filter.on_llm_request()
     async def check_request(self, event: AstrMessageEvent, req: ProviderRequest):
@@ -123,7 +159,15 @@ class MyPlugin(Star):
         if sender_plat != "bilibili":
             return
 
-        if msg_str.startswith("#") or msg_str.startswith("点歌 "):
+        if (
+            isinstance(event, BLivePlatformEvent)
+            and event.is_emoji
+            and self.config["live_context_config"]["skip_emoji"]
+        ):
+            event.stop_event()
+            return
+
+        if self._is_skip(msg_str):
             event.stop_event()
             return
 
@@ -179,20 +223,21 @@ class MyPlugin(Star):
         # chain = MessageChain().message(f"审核模型拒绝！")
         event.stop_event()
 
-    @filter.on_llm_response()
-    async def send_vts_emotion(self, event: AstrMessageEvent, res: LLMResponse):
+    @filter.after_message_sent()
+    async def send_vts_emotion(self, event: AstrMessageEvent):
         """发送VTS情感"""
         if not self.config["vts_config"]["is_open"]:
             return
         VTS_manager = VTSManager()
         emotion_str = str(await VTS_manager.get_emotions())
-        if not res.result_chain:
-            logger.error("返回体没有result_chain")
+        result = event.get_result()
+        if not result:
             return
+        logger.debug(f"文字内容{result.chain}")
         await self.context.tool_loop_agent(
             prompt=_EMOTION_PROMPT
             + emotion_str
-            + f"\n文字内容：{res.result_chain.get_plain_text()}",
+            + f"\n文字内容：{result.get_plain_text(with_other_comps_mark=True)}",
             event=event,
             max_steps=1,
             tools=ToolSet([VTSEmotionTool()]),

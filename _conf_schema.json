@@ -54,6 +54,32 @@
                 "hint" : "发送给LLM的直播间消息最大数量，实际发送数量会根据去重结果调整",
                 "type" : "int",
                 "default" : 10
+            },
+            "skip_emoji" : {
+                "description" : "是否跳过(不处理)表情包弹幕",
+                "type" : "bool"
+            },
+            "skip_config" : {
+                "description" : "跳过（不处理）其他消息的设置",
+                "hint" : "模式full为完全匹配，prefix为前缀匹配，suffix为后缀匹配，regex为正则匹配",
+                "type" : "template_list",
+                "templates" : {
+                    "skip_template" : {
+                        "name" : "跳过模式配置项",
+                        "items" : {
+                            "method" : {
+                                "description" : "配置模式格式",
+                                "type" : "string",
+                                "options" : ["full", "prefix", "suffix", "regex"],
+                                "default" : "full"
+                            },
+                            "content" : {
+                                "description" : "配置内容",
+                                "type" : "text"
+                            }
+                        }
+                    }
+                }
             }
         }
     },
