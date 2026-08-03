@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pyvts
-
 from astrbot.api import logger
 from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
 

@@ -10,7 +10,6 @@ import time
 
 import requests
 import websockets
-
 from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
 
 from .proto import Proto
@@ -243,7 +242,7 @@ class BLiveClient:
                 )
                 consecutive_timeouts = 0
                 logger.debug(f"[Bilibili] received {len(buf)} bytes")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 consecutive_timeouts += 1
                 logger.info(
                     f"[Bilibili] recv timeout ({consecutive_timeouts}/{max_consecutive_timeouts}), heartbeat_timeout={self._heartbeat_timeout}s"
