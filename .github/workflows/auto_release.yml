@@ -1,0 +1,29 @@
+name: Create Release on Tag
+
+on:
+  push:
+    tags:
+      - '*'          
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Create source archive
+        run: git archive --format=zip --output=repo-${{ github.ref_name }}.zip HEAD
+
+      - name: Create Release and upload asset
+        uses: softprops/action-gh-release@v3
+        with:
+          files: repo-${{ github.ref_name }}.zip   
+          name: ${{ github.ref_name }}          
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -23,8 +23,6 @@ LAST_PROCESSED_FILE = os.path.join(PLUGIN_DATA_DIR, "last_processed.json")
 
 _EMOTION_PROMPT = "**任务**：根据以下的文字，选择最适合文字发送者心情的表情"
 
-# todo : 消息跳过配置化
-
 
 def _get_new_events(last_timestamp: float, max_count: int) -> list:
     """Get new events with timestamp > last_timestamp, up to max_count."""

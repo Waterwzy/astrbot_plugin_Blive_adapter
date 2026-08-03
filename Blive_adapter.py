@@ -43,7 +43,7 @@ os.makedirs(PLUGIN_DATA_DIR, exist_ok=True)
         "host": "https://live-open.biliapi.com",
     },
     adapter_display_name="bilibili 直播适配器",
-    logo_path="logo.png",
+    logo_path="a_logo.png",
 )
 class BilibiliLiveAdapter(Platform):
     def __init__(
