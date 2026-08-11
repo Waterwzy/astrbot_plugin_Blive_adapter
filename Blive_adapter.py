@@ -192,7 +192,7 @@ class BilibiliLiveAdapter(Platform):
             abm.message_str = content
             abm.sender = MessageMember(user_id=user_id, nickname=user_name)
             abm.message = [Plain(text=content)]
-            abm.session_id = f"{user_id}_{room_id}"
+            abm.session_id = f"{room_id}"
             abm.message_id = msg_id
             abm.is_emoji = dm_data.get("dm_type")  # type: ignore
 
@@ -213,7 +213,7 @@ class BilibiliLiveAdapter(Platform):
             abm.message_str = content
             abm.sender = MessageMember(user_id=user_id, nickname=user_name)
             abm.message = [Plain(text=content)]
-            abm.session_id = f"{user_id}_{room_id}"
+            abm.session_id = f"{room_id}"
             abm.message_id = ""
 
         elif cmd == "LIVE_OPEN_PLATFORM_SUPER_CHAT":
@@ -231,7 +231,7 @@ class BilibiliLiveAdapter(Platform):
             abm.message_str = text
             abm.sender = MessageMember(user_id=user_id, nickname=user_name)
             abm.message = [Plain(text=text)]
-            abm.session_id = f"{user_id}_{room_id}"
+            abm.session_id = f"{room_id}"
             abm.message_id = ""
 
         elif cmd == "LIVE_OPEN_PLATFORM_GUARD":
@@ -253,7 +253,7 @@ class BilibiliLiveAdapter(Platform):
             abm.message_str = content
             abm.sender = MessageMember(user_id=user_id, nickname=user_name)
             abm.message = [Plain(text=content)]
-            abm.session_id = f"{user_id}_{room_id}"
+            abm.session_id = f"{room_id}"
             abm.message_id = ""
 
         elif cmd == "LIVE_OPEN_PLATFORM_LIVE_ROOM_ENTER":
@@ -271,7 +271,7 @@ class BilibiliLiveAdapter(Platform):
             abm.message_str = content
             abm.sender = MessageMember(user_id=user_id, nickname=user_name)
             abm.message = [Plain(text=content)]
-            abm.session_id = f"{user_id}_{room_id}"
+            abm.session_id = f"{room_id}"
             abm.message_id = ""
 
         elif cmd == "LIVE_OPEN_PLATFORM_LIKE":
@@ -290,7 +290,7 @@ class BilibiliLiveAdapter(Platform):
             abm.message_str = content
             abm.sender = MessageMember(user_id=user_id, nickname=user_name)
             abm.message = [Plain(text=content)]
-            abm.session_id = f"{user_id}_{room_id}"
+            abm.session_id = f"{room_id}"
             abm.message_id = ""
 
         else:
@@ -317,7 +317,7 @@ class BilibiliLiveAdapter(Platform):
             abm.message_str = content
             abm.sender = MessageMember(user_id=user_id, nickname=user_name)
             abm.message = [Plain(text=content)]
-            abm.session_id = f"{user_id}_{room_id}"
+            abm.session_id = f"{room_id}"
             abm.message_id = ""
 
         return abm
