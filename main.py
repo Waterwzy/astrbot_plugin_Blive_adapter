@@ -229,7 +229,7 @@ class BiliBiliLiveTool(Star):
         VTS_manager = VTSManager()
         emotion_str = str(await VTS_manager.get_emotions())
         result = event.get_result()
-        if not result:
+        if not result or not result.chain:
             return
         logger.debug(f"文字内容{result.chain}")
         await self.context.tool_loop_agent(
