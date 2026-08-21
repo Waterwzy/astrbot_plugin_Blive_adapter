@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import random
-import ssl
 import time
 
 import requests
@@ -84,7 +83,7 @@ class BLiveClient:
         """Non-blocking HTTP POST via executor."""
         headers = self._sign(params)
         resp = await asyncio.to_thread(
-            requests.post, url=url, headers=headers, data=params, verify=False
+            requests.post, url=url, headers=headers, data=params
         )
         return json.loads(resp.text)
 
@@ -282,12 +281,8 @@ class BLiveClient:
 
     async def connect(self):
         addr, auth_body = await self._get_websocket_info()
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
         self._ws = await websockets.connect(
             addr,
-            ssl=ssl_context,
             ping_interval=None,
             ping_timeout=None,
             close_timeout=10,
